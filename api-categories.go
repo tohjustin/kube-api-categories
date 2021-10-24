@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/discovery"
 	"k8s.io/klog/v2"
@@ -74,7 +75,6 @@ func NewCmd(streams genericclioptions.IOStreams, name string) *cobra.Command {
 func (o *CmdOptions) Complete(_ *cobra.Command, _ []string) error {
 	var err error
 
-	// Setup client
 	o.Client, err = o.Flags.ToDiscoveryClient()
 	if err != nil {
 		return err
@@ -90,10 +90,24 @@ func (o *CmdOptions) Validate() error {
 
 // Run implements all the necessary functionality for the command.
 func (o *CmdOptions) Run() error {
-	// First check if Kubernetes cluster is reachable
 	if _, err := o.Client.ServerVersion(); err != nil {
 		return err
 	}
 
+	arl, err := o.Client.ServerPreferredResources()
+	if err != nil {
+		return err
+	}
+
+	catSet := sets.NewString()
+	for _, rl := range arl {
+		for _, api := range rl.APIResources {
+			for _, cat := range api.Categories {
+				catSet.Insert(cat)
+			}
+		}
+	}
+
+	fmt.Fprintf(o.Out, "%s", strings.Join(catSet.List(), "\n"))
 	return nil
 }
