@@ -4,7 +4,7 @@ before:
     - go mod tidy
 builds:
   - binary: kube-api-categories
-    main: ./cmd/kube-api-categories
+    main: .
     goos:
       - darwin
       - linux
