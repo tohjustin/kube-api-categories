@@ -1,5 +1,6 @@
 # kube-api-categories
 
+[![build](https://github.com/tohjustin/kube-api-categories/actions/workflows/build.yaml/badge.svg)](https://github.com/tohjustin/kube-api-categories/actions/workflows/build.yaml)
 [![kubernetes compatibility](https://aegisbadges.appspot.com/static?subject=k8s%20compatibility&status=v1.19%2B&color=318FE0)](https://endoflife.date/kubernetes)
 [![license](https://aegisbadges.appspot.com/static?subject=license&status=Apache-2.0&color=318FE0)](./LICENSE.md)
 
