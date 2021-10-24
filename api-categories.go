@@ -15,13 +15,13 @@ import (
 var (
 	cmdPath    string
 	cmdName    = "api-categories"
-	cmdUse     = "%CMD% [flags]"
+	cmdUse     = "%CMD% [options]"
 	cmdExample = templates.Examples(`
-		# Print the available API resource categories on the server
+		# Print the available API categories
 		%CMD_PATH%`)
-	cmdShort = "Print the available API resource categories on the server"
+	cmdShort = "Print the available API categories on the server"
 	cmdLong  = templates.LongDesc(`
-		Print the available API resource categories on the server.`)
+		Print the available API categories on the server.`)
 )
 
 // CmdOptions contains all the options for running the command.
