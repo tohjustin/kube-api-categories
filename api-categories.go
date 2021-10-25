@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/discovery"
@@ -19,7 +20,10 @@ var (
 	cmdUse     = "%CMD% [options]"
 	cmdExample = templates.Examples(`
 		# Print the available API categories
-		%CMD_PATH%`)
+		%CMD_PATH%
+
+		# Print the resources in a specific API category
+		%CMD_PATH% all`)
 	cmdShort = "Print the available API categories on the server"
 	cmdLong  = templates.LongDesc(`
 		Print the available API categories on the server.`)
@@ -29,6 +33,8 @@ var (
 type CmdOptions struct {
 	Flags  *Flags
 	Client discovery.DiscoveryInterface
+
+	RequestCategory string
 
 	genericclioptions.IOStreams
 }
@@ -49,7 +55,7 @@ func NewCmd(streams genericclioptions.IOStreams, name string) *cobra.Command {
 		Example:               strings.ReplaceAll(cmdExample, "%CMD_PATH%", cmdPath),
 		Short:                 cmdShort,
 		Long:                  cmdLong,
-		Args:                  cobra.MaximumNArgs(0),
+		Args:                  cobra.MaximumNArgs(1),
 		DisableFlagsInUseLine: true,
 		DisableSuggestions:    true,
 		SilenceUsage:          true,
@@ -72,9 +78,16 @@ func NewCmd(streams genericclioptions.IOStreams, name string) *cobra.Command {
 }
 
 // Complete completes all the required options for the command.
-func (o *CmdOptions) Complete(_ *cobra.Command, _ []string) error {
+func (o *CmdOptions) Complete(_ *cobra.Command, args []string) error {
 	var err error
 
+	//nolint:gocritic
+	switch len(args) {
+	case 1:
+		o.RequestCategory = args[0]
+	}
+
+	// Setup client
 	o.Client, err = o.Flags.ToDiscoveryClient()
 	if err != nil {
 		return err
@@ -92,6 +105,10 @@ func (o *CmdOptions) Validate() error {
 func (o *CmdOptions) Run() error {
 	if _, err := o.Client.ServerVersion(); err != nil {
 		return err
+	}
+
+	if len(o.RequestCategory) > 0 {
+		return o.listCategoryResources(o.RequestCategory)
 	}
 
 	return o.listCategories()
@@ -119,5 +136,37 @@ func (o *CmdOptions) listCategories() error {
 		output = strings.Join(catSet.List(), "\n")
 	}
 	fmt.Fprintln(o.Out, output)
+	return nil
+}
+
+func (o *CmdOptions) listCategoryResources(category string) error {
+	arl, err := o.Client.ServerPreferredResources()
+	if err != nil {
+		return err
+	}
+
+	rscSet := sets.NewString()
+	for _, rl := range arl {
+		gv, err := schema.ParseGroupVersion(rl.GroupVersion)
+		if err != nil {
+			klog.V(4).Infof("Ignoring invalid discovered resource %q: %v", rl.GroupVersion, err)
+			continue
+		}
+		for _, api := range rl.APIResources {
+			if sets.NewString(api.Categories...).Has(category) {
+				apiName := api.Name
+				if g := gv.Group; len(g) > 0 {
+					apiName = fmt.Sprintf("%s.%s", api.Name, g)
+				}
+				rscSet.Insert(apiName)
+			}
+		}
+	}
+
+	if rscSet.Len() == 0 {
+		return fmt.Errorf("the server doesn't have an API category \"%s\"", category)
+	}
+
+	fmt.Fprintln(o.Out, strings.Join(rscSet.List(), "\n"))
 	return nil
 }
