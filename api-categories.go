@@ -94,6 +94,10 @@ func (o *CmdOptions) Run() error {
 		return err
 	}
 
+	return o.listCategories()
+}
+
+func (o *CmdOptions) listCategories() error {
 	arl, err := o.Client.ServerPreferredResources()
 	if err != nil {
 		return err
@@ -108,6 +112,12 @@ func (o *CmdOptions) Run() error {
 		}
 	}
 
-	fmt.Fprintf(o.Out, "%s", strings.Join(catSet.List(), "\n"))
+	var output string
+	if catSet.Len() == 0 {
+		output = ("No API categories found")
+	} else {
+		output = strings.Join(catSet.List(), "\n")
+	}
+	fmt.Fprintln(o.Out, output)
 	return nil
 }
