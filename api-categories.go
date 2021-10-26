@@ -2,14 +2,17 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/client-go/discovery"
 	"k8s.io/klog/v2"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -21,14 +24,26 @@ var (
 	cmdName    = "api-categories"
 	cmdUse     = "%CMD% [options]"
 	cmdExample = templates.Examples(`
-		# Print the available API categories
+		# Print the supported API categories & resources
 		%CMD_PATH%
 
-		# Print the resources in a specific API category
-		%CMD_PATH% all`)
-	cmdShort = "Print the available API categories on the server"
+		# Print the supported namespaced categories & resources
+		%CMD_PATH% --namespaced=true
+
+		# Print the supported non-namespaced categories & resources
+		%CMD_PATH% --namespaced=false
+
+		# Print the supported API categories & resources with a specific APIGroup
+		%CMD_PATH% --api-group=extensions
+
+		# Print the supported API categories
+		%CMD_PATH% --output=category
+
+		# Print the supported API resources in a specific API category
+		%CMD_PATH% --output=resource --categories=api-extensions`)
+	cmdShort = "Print the supported API categories on the server"
 	cmdLong  = templates.LongDesc(`
-		Print the available API categories on the server.`)
+		Print the supported API categories & resources on the server.`)
 )
 
 // CmdOptions contains all the options for running the command.
@@ -37,9 +52,23 @@ type CmdOptions struct {
 	FlagSet *pflag.FlagSet
 	Client  discovery.CachedDiscoveryInterface
 
-	RequestCategory string
-
 	genericclioptions.IOStreams
+}
+
+type sortableResourceList struct {
+	list []metav1.APIResource
+}
+
+func (s sortableResourceList) Len() int      { return len(s.list) }
+func (s sortableResourceList) Swap(i, j int) { s.list[i], s.list[j] = s.list[j], s.list[i] }
+func (s sortableResourceList) Less(i, j int) bool {
+	ret := strings.Compare(s.list[i].Group, s.list[j].Group)
+	if ret > 0 {
+		return false
+	} else if ret == 0 {
+		return strings.Compare(s.list[i].Name, s.list[j].Name) < 0
+	}
+	return true
 }
 
 // NewCmd returns an initialized Command for the command.
@@ -58,7 +87,7 @@ func NewCmd(streams genericclioptions.IOStreams, name string) *cobra.Command {
 		Example:               strings.ReplaceAll(cmdExample, "%CMD_PATH%", cmdPath),
 		Short:                 cmdShort,
 		Long:                  cmdLong,
-		Args:                  cobra.MaximumNArgs(1),
+		Args:                  cobra.MaximumNArgs(0),
 		DisableFlagsInUseLine: true,
 		DisableSuggestions:    true,
 		SilenceUsage:          true,
@@ -81,14 +110,8 @@ func NewCmd(streams genericclioptions.IOStreams, name string) *cobra.Command {
 }
 
 // Complete completes all the required options for the command.
-func (o *CmdOptions) Complete(cmd *cobra.Command, args []string) error {
+func (o *CmdOptions) Complete(cmd *cobra.Command, _ []string) error {
 	var err error
-
-	//nolint:gocritic
-	switch len(args) {
-	case 1:
-		o.RequestCategory = args[0]
-	}
 
 	// Setup flag set
 	o.FlagSet = cmd.Flags()
@@ -107,6 +130,18 @@ func (o *CmdOptions) Complete(cmd *cobra.Command, args []string) error {
 
 // Validate validates all the required options for the command.
 func (o *CmdOptions) Validate() error {
+	supportedOutputTypes := sets.NewString("", "category", "resource")
+	if !supportedOutputTypes.Has(o.Flags.Output) {
+		return fmt.Errorf("--output %v is not available", o.Flags.Output)
+	}
+
+	klog.V(4).Infof("Flags.APIGroup: %s", o.Flags.APIGroup)
+	klog.V(4).Infof("Flags.Cached: %v", o.Flags.Cached)
+	klog.V(4).Infof("Flags.Categories: %v", o.Flags.Categories)
+	klog.V(4).Infof("Flags.Namespaced: %v", o.Flags.Namespaced)
+	klog.V(4).Infof("Flags.NoHeaders: %v", o.Flags.NoHeaders)
+	klog.V(4).Infof("Flags.Output: %s", o.Flags.Output)
+
 	return nil
 }
 
@@ -116,14 +151,63 @@ func (o *CmdOptions) Run() error {
 		return err
 	}
 
-	if len(o.RequestCategory) > 0 {
-		return o.listCategoryResources(o.RequestCategory)
+	list, err := o.listResources()
+	if err != nil {
+		return err
 	}
 
-	return o.listCategories()
+	switch o.Flags.Output {
+	case "category":
+		cSet := sets.NewString()
+		for _, r := range list {
+			for _, cat := range r.Categories {
+				cSet.Insert(cat)
+			}
+		}
+		_, err = fmt.Fprintln(o.Out, strings.Join(cSet.List(), "\n"))
+	case "resource":
+		rSet := sets.NewString()
+		for _, r := range list {
+			apiName := r.Name
+			if g := r.Group; len(g) > 0 {
+				apiName = fmt.Sprintf("%s.%s", r.Name, g)
+			}
+			rSet.Insert(apiName)
+		}
+		_, err = fmt.Fprintln(o.Out, strings.Join(rSet.List(), "\n"))
+	default:
+		var errs []error
+		w := printers.GetNewTabWriter(o.Out)
+		defer w.Flush()
+
+		// print header
+		if !o.Flags.NoHeaders {
+			columnNames := []string{"RESOURCE", "APIGROUP", "NAMESPACED", "CATEGORIES"}
+			if _, err := fmt.Fprintf(w, "%s\n", strings.Join(columnNames, "\t")); err != nil {
+				errs = append(errs, err)
+			}
+		}
+
+		// print rows
+		sort.Stable(sortableResourceList{list})
+		for _, r := range list {
+			if _, err := fmt.Fprintf(w, "%s\t%s\t%v\t%v\n",
+				r.Name,
+				r.Group,
+				r.Namespaced,
+				r.Categories); err != nil {
+				errs = append(errs, err)
+			}
+		}
+		if len(errs) > 0 {
+			err = errors.NewAggregate(errs)
+		}
+	}
+
+	return err
 }
 
-func (o *CmdOptions) listResources() ([]*metav1.APIResource, error) {
+func (o *CmdOptions) listResources() ([]metav1.APIResource, error) {
 	lists, err := o.Client.ServerPreferredResources()
 	if err != nil {
 		return nil, err
@@ -132,7 +216,7 @@ func (o *CmdOptions) listResources() ([]*metav1.APIResource, error) {
 	groupChanged := o.FlagSet.Changed(flagAPIGroup)
 	nsChanged := o.FlagSet.Changed(flagNamespaced)
 
-	var resources []*metav1.APIResource
+	var resources []metav1.APIResource
 	for _, list := range lists {
 		if len(list.APIResources) == 0 {
 			continue
@@ -157,57 +241,9 @@ func (o *CmdOptions) listResources() ([]*metav1.APIResource, error) {
 				continue
 			}
 			resource.Group = gv.Group
-			resources = append(resources, &resource)
+			resources = append(resources, resource)
 		}
 	}
 
 	return resources, nil
-}
-
-func (o *CmdOptions) listCategories() error {
-	list, err := o.listResources()
-	if err != nil {
-		return err
-	}
-
-	cSet := sets.NewString()
-	for _, r := range list {
-		for _, cat := range r.Categories {
-			cSet.Insert(cat)
-		}
-	}
-
-	var output string
-	if cSet.Len() == 0 {
-		output = ("No API categories found")
-	} else {
-		output = strings.Join(cSet.List(), "\n")
-	}
-	fmt.Fprintln(o.Out, output)
-	return nil
-}
-
-func (o *CmdOptions) listCategoryResources(category string) error {
-	list, err := o.listResources()
-	if err != nil {
-		return err
-	}
-
-	rSet := sets.NewString()
-	for _, r := range list {
-		if sets.NewString(r.Categories...).Has(category) {
-			apiName := r.Name
-			if g := r.Group; len(g) > 0 {
-				apiName = fmt.Sprintf("%s.%s", r.Name, g)
-			}
-			rSet.Insert(apiName)
-		}
-	}
-
-	if rSet.Len() == 0 {
-		return fmt.Errorf("the server doesn't have an API category \"%s\"", category)
-	}
-
-	fmt.Fprintln(o.Out, strings.Join(rSet.List(), "\n"))
-	return nil
 }

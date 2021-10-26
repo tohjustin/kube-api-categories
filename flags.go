@@ -10,10 +10,13 @@ import (
 )
 
 const (
-	flagAPIGroup   = "api-group"
-	flagCached     = "cached"
-	flagCategories = "categories"
-	flagNamespaced = "namespaced"
+	flagAPIGroup        = "api-group"
+	flagCached          = "cached"
+	flagCategories      = "categories"
+	flagNamespaced      = "namespaced"
+	flagNoHeaders       = "no-headers"
+	flagOutput          = "output"
+	flagOutputShorthand = "o"
 )
 
 // Flags composes common configuration flag structs used in the command.
@@ -24,6 +27,8 @@ type Flags struct {
 	Cached     bool
 	Categories []string
 	Namespaced bool
+	NoHeaders  bool
+	Output     string
 }
 
 // Copy returns a copy of Flags for mutation.
@@ -41,6 +46,8 @@ func (f *Flags) AddFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&f.Cached, flagCached, f.Cached, "If false, non-namespaced resources will be returned, otherwise returning namespaced resources by default")
 	flags.StringSliceVar(&f.Categories, flagCategories, f.Categories, "Limit to resources that belong to the specified categories")
 	flags.BoolVar(&f.Namespaced, flagNamespaced, f.Namespaced, "Use the cached list of resources if available")
+	flags.BoolVar(&f.NoHeaders, flagNoHeaders, f.NoHeaders, "When using the default output format, don't print headers (default print headers).")
+	flags.StringVarP(&f.Output, flagOutput, flagOutputShorthand, f.Output, "Output format. One of: category|resource.")
 
 	// Hide client flags to make our help command consistent with kubectl
 	_ = flags.MarkHidden("namespace")
@@ -86,6 +93,8 @@ func NewFlags() *Flags {
 		APIGroup:    "",
 		Cached:      false,
 		Categories:  []string{},
+		Output:      "",
 		Namespaced:  false,
+		NoHeaders:   false,
 	}
 }
