@@ -10,14 +10,16 @@ import (
 )
 
 const (
-	flagCached = "cached"
+	flagCached     = "cached"
+	flagNamespaced = "namespaced"
 )
 
 // Flags composes common configuration flag structs used in the command.
 type Flags struct {
 	*genericclioptions.ConfigFlags
 
-	Cached bool
+	Cached     bool
+	Namespaced bool
 }
 
 // Copy returns a copy of Flags for mutation.
@@ -32,6 +34,7 @@ func (f *Flags) AddFlags(flags *pflag.FlagSet) {
 	f.ConfigFlags.AddFlags(flags)
 
 	flags.BoolVar(&f.Cached, flagCached, f.Cached, "If false, non-namespaced resources will be returned, otherwise returning namespaced resources by default")
+	flags.BoolVar(&f.Namespaced, flagNamespaced, f.Namespaced, "Use the cached list of resources if available")
 
 	// Hide client flags to make our help command consistent with kubectl
 	_ = flags.MarkHidden("namespace")
@@ -75,5 +78,6 @@ func NewFlags() *Flags {
 	return &Flags{
 		ConfigFlags: genericclioptions.NewConfigFlags(true),
 		Cached:      false,
+		Namespaced:  false,
 	}
 }

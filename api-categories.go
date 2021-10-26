@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -31,8 +33,9 @@ var (
 
 // CmdOptions contains all the options for running the command.
 type CmdOptions struct {
-	Flags  *Flags
-	Client discovery.CachedDiscoveryInterface
+	Flags   *Flags
+	FlagSet *pflag.FlagSet
+	Client  discovery.CachedDiscoveryInterface
 
 	RequestCategory string
 
@@ -78,7 +81,7 @@ func NewCmd(streams genericclioptions.IOStreams, name string) *cobra.Command {
 }
 
 // Complete completes all the required options for the command.
-func (o *CmdOptions) Complete(_ *cobra.Command, args []string) error {
+func (o *CmdOptions) Complete(cmd *cobra.Command, args []string) error {
 	var err error
 
 	//nolint:gocritic
@@ -86,6 +89,9 @@ func (o *CmdOptions) Complete(_ *cobra.Command, args []string) error {
 	case 1:
 		o.RequestCategory = args[0]
 	}
+
+	// Setup flag set
+	o.FlagSet = cmd.Flags()
 
 	// Setup client
 	o.Client, err = o.Flags.ToDiscoveryClient()
@@ -117,59 +123,84 @@ func (o *CmdOptions) Run() error {
 	return o.listCategories()
 }
 
+func (o *CmdOptions) listResources() ([]*metav1.APIResource, error) {
+	lists, err := o.Client.ServerPreferredResources()
+	if err != nil {
+		return nil, err
+	}
+
+	nsChanged := o.FlagSet.Changed(flagNamespaced)
+
+	var resources []*metav1.APIResource
+	for _, list := range lists {
+		if len(list.APIResources) == 0 {
+			continue
+		}
+		gv, err := schema.ParseGroupVersion(list.GroupVersion)
+		if err != nil {
+			klog.V(4).Infof("Ignoring invalid discovered resource %q: %v", list.GroupVersion, err)
+			continue
+		}
+		for ix := range list.APIResources {
+			resource := list.APIResources[ix]
+			if len(resource.Verbs) == 0 {
+				continue
+			}
+			if nsChanged && o.Flags.Namespaced != resource.Namespaced {
+				continue
+			}
+			resource.Group = gv.Group
+			resources = append(resources, &resource)
+		}
+	}
+
+	return resources, nil
+}
+
 func (o *CmdOptions) listCategories() error {
-	arl, err := o.Client.ServerPreferredResources()
+	list, err := o.listResources()
 	if err != nil {
 		return err
 	}
 
-	catSet := sets.NewString()
-	for _, rl := range arl {
-		for _, api := range rl.APIResources {
-			for _, cat := range api.Categories {
-				catSet.Insert(cat)
-			}
+	cSet := sets.NewString()
+	for _, r := range list {
+		for _, cat := range r.Categories {
+			cSet.Insert(cat)
 		}
 	}
 
 	var output string
-	if catSet.Len() == 0 {
+	if cSet.Len() == 0 {
 		output = ("No API categories found")
 	} else {
-		output = strings.Join(catSet.List(), "\n")
+		output = strings.Join(cSet.List(), "\n")
 	}
 	fmt.Fprintln(o.Out, output)
 	return nil
 }
 
 func (o *CmdOptions) listCategoryResources(category string) error {
-	arl, err := o.Client.ServerPreferredResources()
+	list, err := o.listResources()
 	if err != nil {
 		return err
 	}
 
-	rscSet := sets.NewString()
-	for _, rl := range arl {
-		gv, err := schema.ParseGroupVersion(rl.GroupVersion)
-		if err != nil {
-			klog.V(4).Infof("Ignoring invalid discovered resource %q: %v", rl.GroupVersion, err)
-			continue
-		}
-		for _, api := range rl.APIResources {
-			if sets.NewString(api.Categories...).Has(category) {
-				apiName := api.Name
-				if g := gv.Group; len(g) > 0 {
-					apiName = fmt.Sprintf("%s.%s", api.Name, g)
-				}
-				rscSet.Insert(apiName)
+	rSet := sets.NewString()
+	for _, r := range list {
+		if sets.NewString(r.Categories...).Has(category) {
+			apiName := r.Name
+			if g := r.Group; len(g) > 0 {
+				apiName = fmt.Sprintf("%s.%s", r.Name, g)
 			}
+			rSet.Insert(apiName)
 		}
 	}
 
-	if rscSet.Len() == 0 {
+	if rSet.Len() == 0 {
 		return fmt.Errorf("the server doesn't have an API category \"%s\"", category)
 	}
 
-	fmt.Fprintln(o.Out, strings.Join(rscSet.List(), "\n"))
+	fmt.Fprintln(o.Out, strings.Join(rSet.List(), "\n"))
 	return nil
 }
