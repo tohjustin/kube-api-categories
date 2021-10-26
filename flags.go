@@ -12,6 +12,7 @@ import (
 const (
 	flagAPIGroup   = "api-group"
 	flagCached     = "cached"
+	flagCategories = "categories"
 	flagNamespaced = "namespaced"
 )
 
@@ -21,6 +22,7 @@ type Flags struct {
 
 	APIGroup   string
 	Cached     bool
+	Categories []string
 	Namespaced bool
 }
 
@@ -37,6 +39,7 @@ func (f *Flags) AddFlags(flags *pflag.FlagSet) {
 
 	flags.StringVar(&f.APIGroup, flagAPIGroup, f.APIGroup, "Limit to resources in the specified API group")
 	flags.BoolVar(&f.Cached, flagCached, f.Cached, "If false, non-namespaced resources will be returned, otherwise returning namespaced resources by default")
+	flags.StringSliceVar(&f.Categories, flagCategories, f.Categories, "Limit to resources that belong to the specified categories")
 	flags.BoolVar(&f.Namespaced, flagNamespaced, f.Namespaced, "Use the cached list of resources if available")
 
 	// Hide client flags to make our help command consistent with kubectl
@@ -82,6 +85,7 @@ func NewFlags() *Flags {
 		ConfigFlags: genericclioptions.NewConfigFlags(true),
 		APIGroup:    "",
 		Cached:      false,
+		Categories:  []string{},
 		Namespaced:  false,
 	}
 }

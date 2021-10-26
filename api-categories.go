@@ -153,6 +153,9 @@ func (o *CmdOptions) listResources() ([]*metav1.APIResource, error) {
 			if nsChanged && o.Flags.Namespaced != resource.Namespaced {
 				continue
 			}
+			if len(o.Flags.Categories) > 0 && !sets.NewString(resource.Categories...).HasAll(o.Flags.Categories...) {
+				continue
+			}
 			resource.Group = gv.Group
 			resources = append(resources, &resource)
 		}
