@@ -10,6 +10,7 @@ import (
 )
 
 const (
+	flagAPIGroup   = "api-group"
 	flagCached     = "cached"
 	flagNamespaced = "namespaced"
 )
@@ -18,6 +19,7 @@ const (
 type Flags struct {
 	*genericclioptions.ConfigFlags
 
+	APIGroup   string
 	Cached     bool
 	Namespaced bool
 }
@@ -33,6 +35,7 @@ func (f *Flags) Copy() Flags {
 func (f *Flags) AddFlags(flags *pflag.FlagSet) {
 	f.ConfigFlags.AddFlags(flags)
 
+	flags.StringVar(&f.APIGroup, flagAPIGroup, f.APIGroup, "Limit to resources in the specified API group")
 	flags.BoolVar(&f.Cached, flagCached, f.Cached, "If false, non-namespaced resources will be returned, otherwise returning namespaced resources by default")
 	flags.BoolVar(&f.Namespaced, flagNamespaced, f.Namespaced, "Use the cached list of resources if available")
 
@@ -77,6 +80,7 @@ func (f *Flags) ToDiscoveryClient() (discovery.CachedDiscoveryInterface, error) 
 func NewFlags() *Flags {
 	return &Flags{
 		ConfigFlags: genericclioptions.NewConfigFlags(true),
+		APIGroup:    "",
 		Cached:      false,
 		Namespaced:  false,
 	}

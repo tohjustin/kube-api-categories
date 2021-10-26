@@ -129,6 +129,7 @@ func (o *CmdOptions) listResources() ([]*metav1.APIResource, error) {
 		return nil, err
 	}
 
+	groupChanged := o.FlagSet.Changed(flagAPIGroup)
 	nsChanged := o.FlagSet.Changed(flagNamespaced)
 
 	var resources []*metav1.APIResource
@@ -144,6 +145,9 @@ func (o *CmdOptions) listResources() ([]*metav1.APIResource, error) {
 		for ix := range list.APIResources {
 			resource := list.APIResources[ix]
 			if len(resource.Verbs) == 0 {
+				continue
+			}
+			if groupChanged && o.Flags.APIGroup != gv.Group {
 				continue
 			}
 			if nsChanged && o.Flags.Namespaced != resource.Namespaced {
