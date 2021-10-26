@@ -27,6 +27,9 @@ var (
 		# Print the supported API categories & resources
 		%CMD_PATH%
 
+		# Print the supported API categories & resources sorted by a column
+		kubectl api-resources --sort-by=resource
+
 		# Print the supported namespaced categories & resources
 		%CMD_PATH% --namespaced=true
 
@@ -56,19 +59,29 @@ type CmdOptions struct {
 }
 
 type sortableResourceList struct {
-	list []metav1.APIResource
+	list   []metav1.APIResource
+	sortBy string
 }
 
 func (s sortableResourceList) Len() int      { return len(s.list) }
 func (s sortableResourceList) Swap(i, j int) { s.list[i], s.list[j] = s.list[j], s.list[i] }
 func (s sortableResourceList) Less(i, j int) bool {
-	ret := strings.Compare(s.list[i].Group, s.list[j].Group)
+	ret := strings.Compare(s.compareValues(i, j))
 	if ret > 0 {
 		return false
 	} else if ret == 0 {
 		return strings.Compare(s.list[i].Name, s.list[j].Name) < 0
 	}
 	return true
+}
+
+func (s sortableResourceList) compareValues(i, j int) (string, string) {
+	switch s.sortBy {
+	case "resource":
+		return s.list[i].Name, s.list[j].Name
+	default:
+		return s.list[i].Group, s.list[j].Group
+	}
 }
 
 // NewCmd returns an initialized Command for the command.
@@ -134,6 +147,10 @@ func (o *CmdOptions) Validate() error {
 	if !supportedOutputTypes.Has(o.Flags.Output) {
 		return fmt.Errorf("--output %v is not available", o.Flags.Output)
 	}
+	supportedSortTypes := sets.NewString("", "resource")
+	if len(o.Flags.SortBy) > 0 && !supportedSortTypes.Has(o.Flags.SortBy) {
+		return fmt.Errorf("--sort-by accepts only resource")
+	}
 
 	klog.V(4).Infof("Flags.APIGroup: %s", o.Flags.APIGroup)
 	klog.V(4).Infof("Flags.Cached: %v", o.Flags.Cached)
@@ -189,7 +206,7 @@ func (o *CmdOptions) Run() error {
 		}
 
 		// print rows
-		sort.Stable(sortableResourceList{list})
+		sort.Stable(sortableResourceList{list: list, sortBy: o.Flags.SortBy})
 		for _, r := range list {
 			if _, err := fmt.Fprintf(w, "%s\t%s\t%v\t%v\n",
 				r.Name,

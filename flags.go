@@ -17,6 +17,7 @@ const (
 	flagNoHeaders       = "no-headers"
 	flagOutput          = "output"
 	flagOutputShorthand = "o"
+	flagSortBy          = "sort-by"
 )
 
 // Flags composes common configuration flag structs used in the command.
@@ -29,6 +30,7 @@ type Flags struct {
 	Namespaced bool
 	NoHeaders  bool
 	Output     string
+	SortBy     string
 }
 
 // Copy returns a copy of Flags for mutation.
@@ -48,6 +50,7 @@ func (f *Flags) AddFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&f.Namespaced, flagNamespaced, f.Namespaced, "Use the cached list of resources if available")
 	flags.BoolVar(&f.NoHeaders, flagNoHeaders, f.NoHeaders, "When using the default output format, don't print headers (default print headers).")
 	flags.StringVarP(&f.Output, flagOutput, flagOutputShorthand, f.Output, "Output format. One of: category|resource.")
+	flags.StringVar(&f.SortBy, flagSortBy, f.SortBy, "If non-empty, sort list of resources using specified field. One of: name.")
 
 	// Hide client flags to make our help command consistent with kubectl
 	_ = flags.MarkHidden("namespace")
@@ -93,8 +96,9 @@ func NewFlags() *Flags {
 		APIGroup:    "",
 		Cached:      false,
 		Categories:  []string{},
-		Output:      "",
 		Namespaced:  false,
 		NoHeaders:   false,
+		Output:      "",
+		SortBy:      "",
 	}
 }
