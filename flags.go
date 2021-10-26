@@ -9,9 +9,15 @@ import (
 	"k8s.io/klog/v2"
 )
 
+const (
+	flagCached = "cached"
+)
+
 // Flags composes common configuration flag structs used in the command.
 type Flags struct {
 	*genericclioptions.ConfigFlags
+
+	Cached bool
 }
 
 // Copy returns a copy of Flags for mutation.
@@ -24,6 +30,8 @@ func (f *Flags) Copy() Flags {
 // configuration to it.
 func (f *Flags) AddFlags(flags *pflag.FlagSet) {
 	f.ConfigFlags.AddFlags(flags)
+
+	flags.BoolVar(&f.Cached, flagCached, f.Cached, "If false, non-namespaced resources will be returned, otherwise returning namespaced resources by default")
 
 	// Hide client flags to make our help command consistent with kubectl
 	_ = flags.MarkHidden("namespace")
@@ -66,5 +74,6 @@ func (f *Flags) ToDiscoveryClient() (discovery.CachedDiscoveryInterface, error) 
 func NewFlags() *Flags {
 	return &Flags{
 		ConfigFlags: genericclioptions.NewConfigFlags(true),
+		Cached:      false,
 	}
 }

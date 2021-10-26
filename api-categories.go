@@ -32,7 +32,7 @@ var (
 // CmdOptions contains all the options for running the command.
 type CmdOptions struct {
 	Flags  *Flags
-	Client discovery.DiscoveryInterface
+	Client discovery.CachedDiscoveryInterface
 
 	RequestCategory string
 
@@ -91,6 +91,9 @@ func (o *CmdOptions) Complete(_ *cobra.Command, args []string) error {
 	o.Client, err = o.Flags.ToDiscoveryClient()
 	if err != nil {
 		return err
+	}
+	if !o.Flags.Cached {
+		o.Client.Invalidate()
 	}
 
 	return nil
