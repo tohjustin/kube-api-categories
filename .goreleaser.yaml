@@ -4,7 +4,7 @@ before:
     - go mod tidy
 builds:
   - binary: kube-api-categories
-    main: .
+    main: ./cmd/kube-api-categories
     goos:
       - darwin
       - linux
@@ -20,12 +20,12 @@ builds:
     ldflags:
       - -s
       - -w
-      - -X main.buildDate={{ .Env.BUILD_DATE }}
-      - -X main.gitCommit={{ .Env.GIT_COMMIT }}
-      - -X main.gitTreeState={{ .Env.GIT_TREE_STATE }}
-      - -X main.gitVersion={{ .Env.GIT_VERSION }}
-      - -X main.gitVersionMajor={{ .Env.GIT_VERSION_MAJOR }}
-      - -X main.gitVersionMinor={{ .Env.GIT_VERSION_MINOR }}
+      - -X github.com/tohjustin/kube-api-categories/internal/version.buildDate={{ .Env.BUILD_DATE }}
+      - -X github.com/tohjustin/kube-api-categories/internal/version.gitCommit={{ .Env.GIT_COMMIT }}
+      - -X github.com/tohjustin/kube-api-categories/internal/version.gitTreeState={{ .Env.GIT_TREE_STATE }}
+      - -X github.com/tohjustin/kube-api-categories/internal/version.gitVersion={{ .Env.GIT_VERSION }}
+      - -X github.com/tohjustin/kube-api-categories/internal/version.gitVersionMajor={{ .Env.GIT_VERSION_MAJOR }}
+      - -X github.com/tohjustin/kube-api-categories/internal/version.gitVersionMinor={{ .Env.GIT_VERSION_MINOR }}
 archives:
   - files:
       - LICENSE.md

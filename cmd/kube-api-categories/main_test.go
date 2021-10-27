@@ -7,14 +7,16 @@ import (
 	"os"
 	"testing"
 
-	kubeapicategories "github.com/tohjustin/kube-api-categories"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+
+	kubeapicategories "github.com/tohjustin/kube-api-categories/cmd/kube-api-categories"
+	"github.com/tohjustin/kube-api-categories/internal/version"
 )
 
 func runCmd(args ...string) (string, error) {
 	buf := bytes.NewBufferString("")
 	streams := genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
-	cmd := kubeapicategories.NewCmd(streams, "kube-api-categories")
+	cmd := kubeapicategories.NewCmd(streams)
 	cmd.SetOut(buf)
 
 	cmd.SetArgs(args)
@@ -37,7 +39,7 @@ func TestCommandWithVersionFlag(t *testing.T) {
 		t.Fatalf("failed to run command: %v", err)
 	}
 
-	expected := fmt.Sprintf("%#v\n", kubeapicategories.GetVersion())
+	expected := fmt.Sprintf("%#v\n", version.Get())
 	if output != expected {
 		t.Fatalf("expected \"%s\" got \"%s\"", expected, output)
 	}

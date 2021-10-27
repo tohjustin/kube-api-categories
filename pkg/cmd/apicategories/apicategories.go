@@ -1,4 +1,4 @@
-package main
+package apicategories
 
 import (
 	"fmt"
@@ -85,7 +85,7 @@ func (s sortableResourceList) compareValues(i, j int) (string, string) {
 }
 
 // NewCmd returns an initialized Command for the command.
-func NewCmd(streams genericclioptions.IOStreams, name string) *cobra.Command {
+func NewCmd(streams genericclioptions.IOStreams, name, parentCmdPath string) *cobra.Command {
 	o := &CmdOptions{
 		Flags:     NewFlags(),
 		IOStreams: streams,
@@ -95,6 +95,9 @@ func NewCmd(streams genericclioptions.IOStreams, name string) *cobra.Command {
 		cmdName = name
 	}
 	cmdPath = cmdName
+	if len(parentCmdPath) > 0 {
+		cmdPath = parentCmdPath + " " + cmdName
+	}
 	cmd := &cobra.Command{
 		Use:                   strings.ReplaceAll(cmdUse, "%CMD%", cmdName),
 		Example:               strings.ReplaceAll(cmdExample, "%CMD_PATH%", cmdPath),
@@ -114,10 +117,6 @@ func NewCmd(streams genericclioptions.IOStreams, name string) *cobra.Command {
 
 	// Setup flags
 	o.Flags.AddFlags(cmd.Flags())
-
-	// Setup version flag
-	cmd.SetVersionTemplate("{{printf \"%s\" .Version}}\n")
-	cmd.Version = fmt.Sprintf("%#v", GetVersion())
 
 	return cmd
 }

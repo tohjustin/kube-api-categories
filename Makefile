@@ -12,18 +12,19 @@ export GIT_VERSION_MAJOR = $(shell if [[ "${GIT_VERSION}" ]]; then echo ${GIT_VE
 export GIT_VERSION_MINOR = $(shell if [[ "${GIT_VERSION}" ]]; then echo ${GIT_VERSION} | cut -d 'v' -f 2 | cut -d "." -f 2 ; fi)
 export CGO_ENABLED = 1
 
+REPO = $(shell go list -m)
 GO_BUILD_ARGS = \
   -gcflags "all=-trimpath=$(shell dirname $(shell pwd))" \
   -asmflags "all=-trimpath=$(shell dirname $(shell pwd))" \
   -ldflags " \
     -s \
     -w \
-    -X 'main.buildDate=$(BUILD_DATE)' \
-    -X 'main.gitCommit=$(GIT_COMMIT)' \
-    -X 'main.gitTreeState=$(GIT_TREE_STATE)' \
-    -X 'main.gitVersion=$(GIT_VERSION)' \
-    -X 'main.gitVersionMajor=$(GIT_VERSION_MAJOR)' \
-    -X 'main.gitVersionMinor=$(GIT_VERSION_MINOR)' \
+    -X '$(REPO)/internal/version.buildDate=$(BUILD_DATE)' \
+    -X '$(REPO)/internal/version.gitCommit=$(GIT_COMMIT)' \
+    -X '$(REPO)/internal/version.gitTreeState=$(GIT_TREE_STATE)' \
+    -X '$(REPO)/internal/version.gitVersion=$(GIT_VERSION)' \
+    -X '$(REPO)/internal/version.gitVersionMajor=$(GIT_VERSION_MAJOR)' \
+    -X '$(REPO)/internal/version.gitVersionMinor=$(GIT_VERSION_MINOR)' \
   " \
 
 .PHONY: all
@@ -43,7 +44,7 @@ test:
 
 .PHONY: build
 build:
-	go build $(GO_BUILD_ARGS) -o bin/kube-api-categories ./
+	go build $(GO_BUILD_ARGS) -o bin/kube-api-categories ./cmd/kube-api-categories
 
 .PHONY: install
 install: build

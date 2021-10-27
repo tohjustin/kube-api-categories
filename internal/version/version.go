@@ -1,4 +1,4 @@
-package main
+package version
 
 import (
 	"fmt"
@@ -14,8 +14,8 @@ var (
 	buildDate       string // build date in rfc3339 format, output of $(date -u +'%Y-%m-%dT%H:%M:%SZ')
 )
 
-// VersionInfo defines the version.
-type VersionInfo struct {
+// Info defines the version.
+type Info struct {
 	Major        string `json:"major,omitempty"`
 	Minor        string `json:"minor,omitempty"`
 	GitVersion   string `json:"gitVersion,omitempty"`
@@ -27,9 +27,9 @@ type VersionInfo struct {
 	Platform     string `json:"platform,omitempty"`
 }
 
-// GetVersion returns metadata and information regarding the version.
-func GetVersion() VersionInfo {
-	return VersionInfo{
+// Get returns metadata and information regarding the version.
+func Get() Info {
+	return Info{
 		Major:        gitVersionMajor,
 		Minor:        gitVersionMinor,
 		GitVersion:   gitVersion,
@@ -43,6 +43,6 @@ func GetVersion() VersionInfo {
 }
 
 // String returns info as a human-friendly version string.
-func (info VersionInfo) String() string {
+func (info Info) String() string {
 	return info.GitVersion
 }
