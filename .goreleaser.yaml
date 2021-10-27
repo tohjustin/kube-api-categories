@@ -43,7 +43,11 @@ changelog:
   sort: asc
   filters:
     exclude:
-      - "^chore:"
-      - "^docs:"
-      - "^refactor:"
-      - "^test:"
+      - "^build(\\(.+\\))?:"
+      - "^chore(\\(.+\\))?:"
+      - "^ci(\\(.+\\))?:"
+      - "^docs(\\(.+\\))?:"
+      - "^perf(\\(.+\\))?:"
+      - "^refactor(\\(.+\\))?:"
+      - "^style(\\(.+\\))?:"
+      - "^test(\\(.+\\))?:"
