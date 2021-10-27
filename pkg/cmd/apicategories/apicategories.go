@@ -28,7 +28,7 @@ var (
 		%CMD_PATH%
 
 		# Print the supported API categories & resources sorted by a column
-		kubectl api-resources --sort-by=resource
+		%CMD_PATH% --sort-by=resource
 
 		# Print the supported namespaced categories & resources
 		%CMD_PATH% --namespaced=true
