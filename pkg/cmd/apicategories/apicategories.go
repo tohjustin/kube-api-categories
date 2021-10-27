@@ -207,11 +207,12 @@ func (o *CmdOptions) Run() error {
 		// print rows
 		sort.Stable(sortableResourceList{list: list, sortBy: o.Flags.SortBy})
 		for _, r := range list {
+			sortedCategories := sets.NewString(r.Categories...).List()
 			if _, err := fmt.Fprintf(w, "%s\t%s\t%v\t%v\n",
 				r.Name,
 				r.Group,
 				r.Namespaced,
-				r.Categories); err != nil {
+				sortedCategories); err != nil {
 				errs = append(errs, err)
 			}
 		}
