@@ -44,7 +44,7 @@ var (
 
 		# Print the supported API resources in a specific API category
 		%CMD_PATH% --output=resource --categories=api-extensions`)
-	cmdShort = "Print the supported API categories on the server"
+	cmdShort = "Print the supported API categories & resources on the server"
 	cmdLong  = templates.LongDesc(`
 		Print the supported API categories & resources on the server.`)
 )
