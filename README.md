@@ -101,6 +101,17 @@ $ kube-api-categories --help
 
 ## Installation
 
+### Install via [krew](https://krew.sigs.k8s.io/)
+
+The tool is available via the [tohjustin/kubectl-plugins](https://github.com/tohjustin/kubectl-plugins) custom plugin index
+
+```shell
+$ kubectl krew index add tohjustin https://github.com/tohjustin/kubectl-plugins.git
+$ kubectl krew install tohjustin/api-categories
+
+$ kubectl api-categories --version
+```
+
 ### Install from Source
 
 ```shell
