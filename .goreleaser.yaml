@@ -52,12 +52,13 @@ changelog:
       - "^style(\\(.+\\))?:"
       - "^test(\\(.+\\))?:"
 krews:
-  - index:
+  - name: api-categories
+    index:
       owner: tohjustin
       name: kubectl-plugins
       branch: master
       token: "{{ .Env.KREW_GITHUB_TOKEN }}"
-    url_template: "http://github.mycompany.com/foo/bar/releases/{{ .Tag }}/{{ .ArtifactName }}"
+    url_template: "https://github.com/tohjustin/kube-api-categories/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
     commit_author:
       name: Justin Toh
       email: tohjustin@hotmail.com
